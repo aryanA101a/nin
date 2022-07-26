@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/ioctl.h>
+#include<string.h>
+
 /*** define ***/
 #define CTRL_KEY(k) ((k)&0x1f)
 
@@ -114,6 +116,33 @@ int getWindowSize(int *rows, int *cols)
     }
 }
 
+/*** append buffer ***/
+struct abuf
+{
+    char *buf;
+    int len;
+};
+
+#define ABUF_INIT \
+    {             \
+        NULL, 0   \
+    }
+
+void abAppend(struct abuf *ab, const char *s, int len)
+{
+    char *new = realloc(ab->buf, ab->len + len);
+
+    if (new == NULL)
+        return;
+    memcpy(&new[ab->len], s, len);
+    ab->buf = new;
+    ab->len += len;
+}
+
+void abFree(struct abuf *ab)
+{
+    free(ab->buf);
+}
 /*** input ***/
 void editorProcessKeypress()
 {
@@ -131,26 +160,36 @@ void editorProcessKeypress()
 }
 
 /*** output ***/
-void editorDrawRows()
+void editorDrawRows(struct abuf *ab)
 {
     int y;
     for (y = 0; y < E.screenrows; y++)
     {
-        write(STDOUT_FILENO, "~", 1);
 
+        
+        abAppend(ab, "~", 1);
+
+        abAppend(ab,"\x1b[K",3);//clear line
         if (y < E.screenrows - 1)
         {
-            write(STDOUT_FILENO, "\r\n", 2);
+            abAppend(ab, "\r\n", 2);//carriage return and next line
         }
     }
 }
 void editorRefreshScreen()
 {
-    write(STDOUT_FILENO, "\x1b[2J", 4); // clear the screen
-    write(STDOUT_FILENO, "\x1b[H", 3);  // cursor to top left
+    struct abuf ab=ABUF_INIT;
+    abAppend(&ab, "\x1b[?25l", 6);//hide cursor
+    
+    abAppend(&ab, "\x1b[H", 3);  // cursor to top left
 
-    editorDrawRows();
-    write(STDOUT_FILENO, "\x1b[H", 3);
+    editorDrawRows(&ab);
+    abAppend(&ab, "\x1b[H", 3);
+    abAppend(&ab, "\x1b[?25h", 6);//show cursor
+
+    write(STDOUT_FILENO,ab.buf,ab.len);
+    abFree(&ab);
+
 }
 
 /*** init ***/

@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.tcc": "c",
+        "algorithm": "c",
+        "random": "c",
+        "streambuf": "c"
+    }
+}
