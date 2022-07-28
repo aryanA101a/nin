@@ -13,8 +13,10 @@
 #include <string.h>
 
 /*** define ***/
+#define NIN_VERSION "0.0.1"
+#define NIN_TAB_STOP 8
+
 #define CTRL_KEY(k) ((k)&0x1f)
-#define KILO_VERSION "0.0.1"
 
 enum editorKey
 {
@@ -34,7 +36,9 @@ enum editorKey
 typedef struct erow
 {
     int size;
+    int rsize;
     char *chars;
+    char *render;
 
 } erow;
 
@@ -224,6 +228,39 @@ int getWindowSize(int *rows, int *cols)
     }
 }
 /*** row operations ***/
+void editorUpdateRow(erow *row)
+{
+    int tabs = 0;
+    int j = 0;
+
+    // count tabs
+    for (j = 0; j < row->size; j++)
+    {
+        if (row->chars[j] == '\t')
+            tabs++;
+    }
+
+    free(row->render);
+    row->render = malloc(row->size + tabs * (NIN_TAB_STOP) + 1);
+
+    int idx = 0;
+    //add spaces in places of '/t'
+    for (j = 0; j < row->size; j++)
+    {
+        if (row->chars[j] == '\t')
+        {
+            row->render[idx++] = ' ';
+            while (idx % NIN_TAB_STOP != 0)
+                row->render[idx++] = ' ';
+        }
+        else
+        {
+            row->render[idx++] = row->chars[j];
+        }
+    }
+    row->render[idx] = '\0';
+    row->rsize = idx;
+}
 void editorAppendRow(char *s, size_t len)
 {
     E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
@@ -233,6 +270,11 @@ void editorAppendRow(char *s, size_t len)
     E.row[at].chars = malloc(len + 1);
     memcpy(E.row[at].chars, s, len);
     E.row[at].chars[len] = '\0';
+
+    E.row[at].rsize = 0;
+    E.row[at].render = NULL;
+    editorUpdateRow(&E.row[at]);
+
     E.numrows++;
 }
 /*** file i/o ***/
@@ -387,6 +429,7 @@ void editorScroll()
         E.coloff = E.cx - E.screencols + 1;
     }
 }
+
 void editorDrawRows(struct abuf *ab)
 {
     int y;
@@ -399,7 +442,7 @@ void editorDrawRows(struct abuf *ab)
             if (E.numrows == 0 && y == E.screenrows / 3)
             {
                 char welcome[80];
-                int welcomelen = snprintf(welcome, sizeof(welcome), "nin editor -- version %s", KILO_VERSION);
+                int welcomelen = snprintf(welcome, sizeof(welcome), "nin editor -- version %s", NIN_VERSION);
                 if (welcomelen > E.screencols)
                     welcomelen = E.screencols;
 
@@ -420,12 +463,12 @@ void editorDrawRows(struct abuf *ab)
         }
         else
         {
-            int len = E.row[filerow].size - E.coloff;
+            int len = E.row[filerow].rsize - E.coloff;
             if (len < 0)
                 len = 0;
             if (len > E.screencols)
                 len = E.screencols;
-            abAppend(ab, &E.row[filerow].chars[E.coloff], len);
+            abAppend(ab, &E.row[filerow].render[E.coloff], len);
         }
 
         abAppend(ab, "\x1b[K", 3); // clear line
