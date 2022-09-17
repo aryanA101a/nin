@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "editor_operations.h": "c",
+        "input.h": "c",
+        "output.h": "c",
+        "row_operations.h": "c",
+        "cctype": "c",
+        "data.h": "c",
+        "terminal.h": "c",
+        "file_io.h": "c",
+        "string.h": "c",
+        "append_buffer.h": "c"
+    }
+}
